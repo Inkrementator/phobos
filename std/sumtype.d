@@ -256,6 +256,20 @@ private enum isInout(T) = is(T == inout);
 
 private enum memberName(size_t tid) = "values_" ~ toCtString!tid;
 
+mixin template setTag(alias newTag)
+{
+    static if (Types.length > 1)
+    {
+        Tag _t = newTag;
+        Tag _ = (this.tag = _t);
+        /+
+        // Without creating a temporary copy, this will throw some warnings
+        // std/sumtype.d(264): Deprecation: cannot initialize field `tag` with itself
+        Tag _ = (this.tag = newTag)
+        +/
+    }
+}
+
 /**
  * A [tagged union](https://en.wikipedia.org/wiki/Tagged_union) that can hold a
  * single value from any of a specified set of types.
@@ -372,8 +386,11 @@ public:
                 storage.tupleof[tid] = forward!value;
             }
 
+            mixin setTag!tid;
+            /+
             static if (Types.length > 1)
                 tag = tid;
+            +/
         }
 
         static if (isCopyable!(const(T)))
@@ -384,8 +401,11 @@ public:
                 this(const(T) value) const
                 {
                     storage.tupleof[tid] = value;
+                    mixin setTag!tid;
+                    /+
                     static if (Types.length > 1)
                         tag = tid;
+                    +/
                 }
             }
         }
@@ -402,8 +422,12 @@ public:
                 this(immutable(T) value) immutable
                 {
                     storage.tupleof[tid] = value;
+
+                    mixin setTag!tid;
+                    /+
                     static if (Types.length > 1)
                         tag = tid;
+                    +/
                 }
             }
         }
@@ -421,8 +445,11 @@ public:
                 if (is(Value == DeducedParameterType!(inout(T))))
                 {
                     storage.tupleof[tid] = value;
+                    mixin setTag!tid;
+                    /+
                     static if (Types.length > 1)
                         tag = tid;
+                    +/
                 }
             }
         }
@@ -456,8 +483,11 @@ public:
                     return newStorage;
                 });
 
+                mixin setTag!(other.tag);
+                /+
                 static if (Types.length > 1)
                     tag = other.tag;
+                +/
             }
         }
         else
@@ -477,8 +507,15 @@ public:
                         return newStorage;
                     });
 
+                    // copy the tag first, and then it won't error
+                    //Tag t = other.tag;
+                    //mixin setTag!(t);
+                    // this will cause one test to fail
+                    mixin setTag!(other.tag);
+                    /+
                     static if (Types.length > 1)
                         tag = other.tag;
+                    +/
                 }
             }
             else
